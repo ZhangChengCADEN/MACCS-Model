@@ -1,0 +1,57 @@
+from openbabel import pybel
+import csv
+
+def read_smiles_file(filename):
+    # Open the file in read mode
+    with open(filename, 'r') as file:
+        # Read all lines, strip leading/trailing spaces, ignore empty lines
+        smiles = [line.strip() for line in file.readlines() if line.strip()]
+    return smiles
+
+def generate_fingerprints(smiles_list):
+    fingerprints = []
+    for smi in smiles_list:
+        mol = pybel.readstring("smi", smi)
+        fp = mol.calcfp(fptype='MACCS')
+        fingerprints.append(fp)
+    return fingerprints
+
+def calculate_similarity(fp_list1, fp_list2):
+    similarity_matrix = []
+    for fp1 in fp_list1:
+        row = []
+        for fp2 in fp_list2:
+            sim = fp1 | fp2  # Calculate Tanimoto similarity
+            row.append(sim)
+        similarity_matrix.append(row)
+    return similarity_matrix
+
+def sort_similarity_pairs(similarity_matrix):
+    pairs = []
+    n1, n2 = len(similarity_matrix), len(similarity_matrix[0])
+    for i in range(n1):
+        for j in range(n2):
+            pairs.append((f'File1-Molecule {i+1}', f'File2-Molecule {j+1}', similarity_matrix[i][j]))
+    # Sort pairs by similarity in descending order
+    sorted_pairs = sorted(pairs, key=lambda x: x[2], reverse=True)
+    return sorted_pairs
+
+def save_similarity_to_csv(sorted_pairs, filename="sorted_similarity_pairs.csv"):
+    with open(filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Molecule 1', 'Molecule 2', 'Similarity'])
+        for pair in sorted_pairs:
+            writer.writerow(pair)
+
+# Main execution
+smiles_filename1 = 'base.txt'  # replace with your first file's name
+smiles_filename2 = 'si_base.txt'  # replace with your second file's name
+smiles1 = read_smiles_file(smiles_filename1)
+smiles2 = read_smiles_file(smiles_filename2)
+fingerprints1 = generate_fingerprints(smiles1)
+fingerprints2 = generate_fingerprints(smiles2)
+similarity_matrix = calculate_similarity(fingerprints1, fingerprints2)
+sorted_similarity_pairs = sort_similarity_pairs(similarity_matrix)
+save_similarity_to_csv(sorted_similarity_pairs)
+
+print("Sorted similarity pairs have been saved to 'sorted_similarity_pairs.csv'")
